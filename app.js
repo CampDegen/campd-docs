@@ -2,6 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "docs_sources";
+  const ADD_SOURCE_OPEN_KEY = "docs_add_source_open";
   const DEFAULT_PATH = "index";
   const GITHUB_API = "https://api.github.com";
 
@@ -29,6 +30,15 @@
 
   function setSources(sources) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sources));
+  }
+
+  function getAddSourceOpen() {
+    const v = localStorage.getItem(ADD_SOURCE_OPEN_KEY);
+    return v === null ? true : v === "true";
+  }
+
+  function setAddSourceOpen(open) {
+    localStorage.setItem(ADD_SOURCE_OPEN_KEY, String(open));
   }
 
   /** Parse GitHub repo URL to { owner, repo }. */
@@ -130,7 +140,9 @@
 
   function resolveRelativeLink(basePath, href) {
     if (!href || href.startsWith("#") || href.startsWith("http") || href.startsWith("/")) return href;
-    const base = basePath.replace(/\/[^/]*$/, "") || "";
+    const base = (!basePath || basePath === "index" || !basePath.includes("/"))
+      ? ""
+      : basePath.replace(/\/[^/]*$/, "");
     const segs = (base + "/" + href).split("/").filter(Boolean);
     const out = [];
     for (const s of segs) {
@@ -157,7 +169,7 @@
       }
       if (sourceId && !href.startsWith("http") && !href.startsWith("mailto:")) {
         const resolved = resolveRelativeLink(basePath, href);
-        if (resolved && resolved !== href) {
+        if (resolved) {
           a.addEventListener("click", (e) => {
             e.preventDefault();
             window.location.hash = "/s/" + sourceId + "/" + resolved;
@@ -181,7 +193,7 @@
     } else {
       html += "<p>No sources yet. Add a GitHub repo below. You can only add repos you have access to (public, or private with a token).</p>";
     }
-    html += "<hr/><details open><summary>Add source</summary><form id=\"add-source-form\" style=\"margin-top:1rem\">" +
+    html += "<hr/><details id=\"add-source-details\"" + (getAddSourceOpen() ? " open" : "") + "><summary>Add source</summary><form id=\"add-source-form\" style=\"margin-top:1rem\">" +
       "<p><label>Name <input type=\"text\" name=\"name\" placeholder=\"My docs\" required></label></p>" +
       "<p><label>GitHub repo URL <input type=\"url\" name=\"repo_url\" placeholder=\"https://github.com/owner/repo\" required></label></p>" +
       "<p><label>Branch <input type=\"text\" name=\"default_ref\" value=\"main\" placeholder=\"main\"></label></p>" +
@@ -189,6 +201,11 @@
       "<p><label>Token (optional, for private repos) <input type=\"password\" name=\"pat\" placeholder=\"leave empty for public repos\" autocomplete=\"off\"></label></p>" +
       "<p><button type=\"submit\">Add source</button></p></form></details>";
     updateContent(html);
+
+    const detailsEl = document.getElementById("add-source-details");
+    if (detailsEl) {
+      detailsEl.addEventListener("toggle", () => setAddSourceOpen(detailsEl.open));
+    }
 
     const form = document.getElementById("add-source-form");
     if (form) {
